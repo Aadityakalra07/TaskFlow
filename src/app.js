@@ -1,8 +1,10 @@
 const express = require('express');
 const healthRoutes = require('./routes/healthRoutes');
 const userRoutes = require('./routes/userRoutes');
+const jobRoutes = require('./routes/jobRoutes');
 const app = express();
 app.use(express.json());
 app.use('/api/health', healthRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/jobs', jobRoutes);
 module.exports=app;
