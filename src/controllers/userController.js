@@ -1,15 +1,4 @@
 const User = require("../models/User");
-const createUser = async (req, res) => {
-  try {
-    const user = await User.create(req.body);
-    res.status(201).json(user);
-  } catch (err) {
-    res.status(500).json({
-      message: "Failed to create user",
-      error: err.message,
-    });
-  }
-};
 const getAllUsers = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -78,4 +67,4 @@ const deleteUser = async (req, res) => {
     });
   }
 }
-module.exports = { createUser, getAllUsers, getUserById, updateUser, deleteUser };
+module.exports = {  getAllUsers, getUserById, updateUser, deleteUser };
