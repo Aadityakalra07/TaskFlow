@@ -1,8 +1,18 @@
 const Job = require("../models/Job");
 const createJob = async (req, res) => {
     try {
-        const job = await Job.create(req.body);
+        const { type, payload, priority, scheduledAt } = req.body;
+
+        const job = await Job.create({
+            user: req.user.userId,
+            type,
+            payload,
+            priority,
+            scheduledAt
+        });
+
         res.status(201).json(job);
+
     } catch (err) {
         res.status(500).json({
             message: "Failed to create job",
@@ -20,7 +30,9 @@ const getAllJobs = async (req, res) => {
         const priority = req.query.priority;
         const sort = req.query.sort || "createdAt";
 
-        const filter = {};
+        const filter = {
+            user: req.user.userId
+        };
 
         if (status) {
             filter.status = status;

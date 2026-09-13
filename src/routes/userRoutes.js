@@ -1,8 +1,10 @@
 const express = require('express');
 const userController = require('../controllers/userController');
+const auth = require("../middleware/authMiddleware");
+const authorize = require("../middleware/roleMiddleware");
 const router = express.Router();
 router.get('/', userController.getAllUsers);
 router.get('/:id', userController.getUserById);
 router.patch('/:id', userController.updateUser);
-router.delete('/:id', userController.deleteUser);
+router.delete('/:id', auth, authorize("admin"), userController.deleteUser);
 module.exports = router;
