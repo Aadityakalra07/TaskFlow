@@ -77,9 +77,19 @@ const getJobById = async (req, res) => {
 };
 const updateJob = async (req, res) => {
     try {
-        const job = await Job.findByIdAndUpdate(
-            req.params.id,
-            req.body,
+        const { type, payload, priority, scheduledAt } = req.body;
+
+        const job = await Job.findOneAndUpdate(
+            {
+                _id: req.params.id,
+                user: req.user.userId
+            },
+            {
+                type,
+                payload,
+                priority,
+                scheduledAt
+            },
             {
                 new: true
             }
@@ -121,6 +131,34 @@ const deleteJob = async (req, res) => {
         });
     }
 };
+const updateJobStatus = async (jobId, status, error = null) => {
+    const validTransitions = {
+        pending: ["processing", "cancelled"],
+        processing: ["completed", "failed"],
+        completed: [],
+        failed: ["processing"],
+        cancelled: []
+    };
+
+    const job = await Job.findById(jobId);
+
+    if (!job) {
+        return null;
+    }
+
+    if (!validTransitions[job.status].includes(status)) {
+        throw new Error(
+            `Cannot change job status from ${job.status} to ${status}`
+        );
+    }
+
+    job.status = status;
+    job.error = error;
+
+    await job.save();
+
+    return job;
+};
 module.exports = {
-    createJob, getAllJobs, getJobById, updateJob, deleteJob
+    createJob, getAllJobs, getJobById, updateJob, deleteJob, updateJobStatus
 };
