@@ -12,12 +12,26 @@ const createJob = async (req, res) => {
       scheduledAt,
     });
 
+    const priorityMap = {
+      high: 1,
+      medium: 5,
+      low: 10,
+    };
+
+    const bullmqPriority = priorityMap[priority] || 5;
+
+    const delay = scheduledAt
+    ? Math.max(0, new Date(scheduledAt).getTime() - Date.now())
+    : 0;
+
     await jobQueue.add(
       "process-job",
       {
         jobId: job._id.toString(),
       },
       {
+        priority: bullmqPriority,
+        delay: delay,
         attempts: 3,
         backoff: {
           type: "exponential",
