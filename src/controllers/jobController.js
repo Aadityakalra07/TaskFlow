@@ -1,5 +1,8 @@
 const Job = require("../models/Job");
 const jobQueue = require("../queues/jobQueue");
+
+const { getCache, setCache, deleteUserJobCache } = require("../utils/cache");
+
 const createJob = async (req, res) => {
   try {
     const { type, payload, priority, scheduledAt } = req.body;
@@ -21,8 +24,8 @@ const createJob = async (req, res) => {
     const bullmqPriority = priorityMap[priority] || 5;
 
     const delay = scheduledAt
-    ? Math.max(0, new Date(scheduledAt).getTime() - Date.now())
-    : 0;
+      ? Math.max(0, new Date(scheduledAt).getTime() - Date.now())
+      : 0;
 
     await jobQueue.add(
       "process-job",
@@ -39,7 +42,7 @@ const createJob = async (req, res) => {
         },
       },
     );
-
+    await deleteUserJobCache(req.user.userId);
     res.status(201).json(job);
   } catch (err) {
     res.status(500).json({
@@ -48,6 +51,7 @@ const createJob = async (req, res) => {
     });
   }
 };
+
 const getAllJobs = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -70,7 +74,21 @@ const getAllJobs = async (req, res) => {
       filter.priority = priority;
     }
 
+    // Create a unique cache key for this exact query
+    const cacheKey = `jobs:${req.user.userId}:${page}:${limit}:${status || "all"}:${priority || "all"}:${sort}`;
+
+    // Check Redis first
+    const cachedJobs = await getCache(cacheKey);
+
+    if (cachedJobs) {
+      return res.status(200).json(cachedJobs);
+    }
+
+    // Cache miss → query MongoDB
     const jobs = await Job.find(filter).sort(sort).skip(skip).limit(limit);
+
+    // Store MongoDB result in Redis
+    await setCache(cacheKey, jobs);
 
     res.status(200).json(jobs);
   } catch (err) {
@@ -80,6 +98,7 @@ const getAllJobs = async (req, res) => {
     });
   }
 };
+
 const getJobById = async (req, res) => {
   try {
     const job = await Job.findById(req.params.id);
@@ -98,6 +117,7 @@ const getJobById = async (req, res) => {
     });
   }
 };
+
 const updateJob = async (req, res) => {
   try {
     const { type, payload, priority, scheduledAt } = req.body;
@@ -123,7 +143,7 @@ const updateJob = async (req, res) => {
         message: "Job not found",
       });
     }
-
+    await deleteUserJobCache(req.user.userId);
     res.status(200).json(job);
   } catch (err) {
     res.status(500).json({
@@ -132,16 +152,20 @@ const updateJob = async (req, res) => {
     });
   }
 };
+
 const deleteJob = async (req, res) => {
   try {
-    const job = await Job.findByIdAndDelete(req.params.id);
+    const job = await Job.findOneAndDelete({
+      _id: req.params.id,
+      user: req.user.userId,
+    });
 
     if (!job) {
       return res.status(404).json({
         message: "Job not found",
       });
     }
-
+    await deleteUserJobCache(req.user.userId);
     res.status(200).json({
       message: "Job deleted successfully",
     });
@@ -152,6 +176,7 @@ const deleteJob = async (req, res) => {
     });
   }
 };
+
 const updateJobStatus = async (jobId, status, error = null) => {
   const validTransitions = {
     pending: ["processing", "cancelled"],
@@ -178,6 +203,7 @@ const updateJobStatus = async (jobId, status, error = null) => {
 
   return job;
 };
+
 module.exports = {
   createJob,
   getAllJobs,
