@@ -1,9 +1,9 @@
 const Job = require("../models/Job");
 const jobQueue = require("../queues/jobQueue");
-
+const AppError = require("../utils/AppError");
 const { getCache, setCache, deleteUserJobCache } = require("../utils/cache");
 
-const createJob = async (req, res) => {
+const createJob = async (req, res ,next) => {
   try {
     const { type, payload, priority, scheduledAt } = req.body;
 
@@ -45,14 +45,11 @@ const createJob = async (req, res) => {
     await deleteUserJobCache(req.user.userId);
     res.status(201).json(job);
   } catch (err) {
-    res.status(500).json({
-      message: "Failed to create job",
-      error: err.message,
-    });
+    next(err);
   }
 };
 
-const getAllJobs = async (req, res) => {
+const getAllJobs = async (req, res, next) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
@@ -92,33 +89,28 @@ const getAllJobs = async (req, res) => {
 
     res.status(200).json(jobs);
   } catch (err) {
-    res.status(500).json({
-      message: "Failed to fetch jobs",
-      error: err.message,
-    });
+    next(err);
   }
 };
 
-const getJobById = async (req, res) => {
+const getJobById = async (req, res, next) => {
   try {
-    const job = await Job.findById(req.params.id);
+    const job = await Job.findOne({
+      _id: req.params.id,
+      user: req.user.userId,
+    });
 
-    if (!job) {
-      return res.status(404).json({
-        message: "Job not found",
-      });
-    }
+   if (!job) {
+    throw new AppError("Job not found", 404);
+}
 
     res.status(200).json(job);
   } catch (err) {
-    res.status(500).json({
-      message: "Failed to fetch job",
-      error: err.message,
-    });
-  }
+    next(err);
+}
 };
 
-const updateJob = async (req, res) => {
+const updateJob = async (req, res,next) => {
   try {
     const { type, payload, priority, scheduledAt } = req.body;
 
@@ -139,21 +131,16 @@ const updateJob = async (req, res) => {
     );
 
     if (!job) {
-      return res.status(404).json({
-        message: "Job not found",
-      });
-    }
+    throw new AppError("Job not found", 404);
+}
     await deleteUserJobCache(req.user.userId);
     res.status(200).json(job);
   } catch (err) {
-    res.status(500).json({
-      message: "Failed to update job",
-      error: err.message,
-    });
+    next(err);
   }
 };
 
-const deleteJob = async (req, res) => {
+const deleteJob = async (req, res, next) => {
   try {
     const job = await Job.findOneAndDelete({
       _id: req.params.id,
@@ -161,19 +148,14 @@ const deleteJob = async (req, res) => {
     });
 
     if (!job) {
-      return res.status(404).json({
-        message: "Job not found",
-      });
-    }
+    throw new AppError("Job not found", 404);
+}
     await deleteUserJobCache(req.user.userId);
     res.status(200).json({
       message: "Job deleted successfully",
     });
   } catch (err) {
-    res.status(500).json({
-      message: "Failed to delete job",
-      error: err.message,
-    });
+    next(err);
   }
 };
 

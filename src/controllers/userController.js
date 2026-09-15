@@ -1,5 +1,6 @@
 const User = require("../models/User");
-const getAllUsers = async (req, res) => {
+const AppError = require("../utils/AppError");
+const getAllUsers = async (req, res, next) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
@@ -17,54 +18,42 @@ const getAllUsers = async (req, res) => {
       .limit(limit);
     res.json(users);
   } catch (err) {
-    res.status(500).json({
-      message: "Failed to fetch users",
-      error: err.message,
-    });
+    next(err);
   }
 };
-const getUserById = async (req, res) => {
+const getUserById = async (req, res, next) => {
   try {
     const user = await User.findById(req.params.id);
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      throw new AppError("User not found", 404);
     }
     res.json(user);
   } catch (err) {
-    res.status(500).json({
-      message: "Failed to fetch user",
-      error: err.message,
-    });
+    next(err);
   }
 };
-const updateUser = async (req, res) => {
+const updateUser = async (req, res, next) => {
   try {
     const user = await User.findByIdAndUpdate(req.params.id, req.body, {
       new: after,
     });
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      throw new AppError("User not found", 404);
     }
     res.json(user);
   } catch (err) {
-    res.status(500).json({
-      message: "Failed to update user",
-      error: err.message,
-    });
+    next(err);
   }
 };
-const deleteUser = async (req, res) => {
-  try{
+const deleteUser = async (req, res, next) => {
+  try {
     const user = await User.findByIdAndDelete(req.params.id);
-    if(!user){
-      return res.status(404).json({message: "User not found"});
+    if (!user) {
+      throw new AppError("User not found", 404);
     }
-    res.json({message: "User deleted successfully"});
-  }catch(err){
-    res.status(500).json({
-      message: "Failed to delete user",
-      error: err.message,
-    });
+    res.json({ message: "User deleted successfully" });
+  } catch (err) {
+    next(err);
   }
-}
-module.exports = {  getAllUsers, getUserById, updateUser, deleteUser };
+};
+module.exports = { getAllUsers, getUserById, updateUser, deleteUser };
