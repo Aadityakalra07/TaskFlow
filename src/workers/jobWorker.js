@@ -1,11 +1,28 @@
+require("dotenv").config();
+
+const { createClient } = require("redis");
 const { Worker } = require("bullmq");
 const Job = require("../models/Job");
 const connectDB = require("../config/db");
-require("dotenv").config();
+
 const startWorker = async () => {
     try {
         // Connect worker to MongoDB
         await connectDB();
+
+        // Create Redis publisher
+        const publisher = createClient({
+            url: process.env.REDIS_URL || "redis://localhost:6379"
+        });
+
+        publisher.on("error", (err) => {
+            console.error("Redis Publisher Error:", err);
+        });
+
+        // Connect Redis publisher
+        await publisher.connect();
+
+        console.log("Redis publisher connected");
 
         const jobWorker = new Worker(
             "taskflow-jobs",
@@ -13,7 +30,7 @@ const startWorker = async () => {
             async (job) => {
                 console.log("Processing job:", job.data.jobId);
 
-                // Find the job and mark it as processing
+                // Mark job as processing and increment attempts
                 const dbJob = await Job.findByIdAndUpdate(
                     job.data.jobId,
                     {
@@ -28,6 +45,15 @@ const startWorker = async () => {
                 if (!dbJob) {
                     throw new Error("Job not found");
                 }
+
+                // Publish processing update
+                await publisher.publish(
+                    "job-updates",
+                    JSON.stringify({
+                        jobId: dbJob._id.toString(),
+                        status: "processing"
+                    })
+                );
 
                 try {
                     // Handle different job types
@@ -65,6 +91,15 @@ const startWorker = async () => {
                         }
                     );
 
+                    // Publish completed update
+                    await publisher.publish(
+                        "job-updates",
+                        JSON.stringify({
+                            jobId: dbJob._id.toString(),
+                            status: "completed"
+                        })
+                    );
+
                 } catch (err) {
 
                     // Mark job as failed in MongoDB
@@ -74,6 +109,16 @@ const startWorker = async () => {
                             status: "failed",
                             error: err.message
                         }
+                    );
+
+                    // Publish failed update
+                    await publisher.publish(
+                        "job-updates",
+                        JSON.stringify({
+                            jobId: dbJob._id.toString(),
+                            status: "failed",
+                            error: err.message
+                        })
                     );
 
                     // Tell BullMQ that the job failed
@@ -105,7 +150,10 @@ const startWorker = async () => {
         console.log("Worker is running");
 
     } catch (err) {
-        console.error("Failed to start worker:", err);
+        console.error(
+            "Failed to start worker:",
+            err
+        );
     }
 };
 
