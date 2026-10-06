@@ -1,0 +1,44 @@
+services:
+  mongodb:
+    image: mongo:8
+    container_name: taskflow-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - taskflow-mongo-data:/data/db
+
+  redis:
+    image: redis:latest
+    container_name: taskflow-redis
+    ports:
+      - "6379:6379"
+
+  api:
+    build: .
+    container_name: taskflow-api
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      REDIS_URL: redis://redis:6379
+      MONGODB_URI: mongodb://mongodb:27017/
+    depends_on:
+      - mongodb
+      - redis
+
+  worker:
+    build: .
+    container_name: taskflow-worker
+    env_file:
+      - .env
+    environment:
+      REDIS_URL: redis://redis:6379
+      MONGODB_URI: mongodb://mongodb:27017/
+    depends_on:
+      - mongodb
+      - redis
+    command: node src/workers/jobWorker.js
+
+volumes:
+  taskflow-mongo-data:

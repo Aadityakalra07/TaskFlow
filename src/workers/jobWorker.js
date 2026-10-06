@@ -5,6 +5,10 @@ const { Worker } = require("bullmq");
 const Job = require("../models/Job");
 const connectDB = require("../config/db");
 
+const redisUrl = new URL(
+    process.env.REDIS_URL || "redis://localhost:6379"
+);
+
 const startWorker = async () => {
     try {
         // Connect worker to MongoDB
@@ -58,7 +62,6 @@ const startWorker = async () => {
                 try {
                     // Handle different job types
                     if (dbJob.type === "SEND_EMAIL") {
-
                         console.log(
                             "Sending email to:",
                             dbJob.payload.to
@@ -75,9 +78,7 @@ const startWorker = async () => {
                         });
 
                         console.log("Email sent successfully");
-
                     } else {
-
                         throw new Error(
                             `Unsupported job type: ${dbJob.type}`
                         );
@@ -99,9 +100,7 @@ const startWorker = async () => {
                             status: "completed"
                         })
                     );
-
                 } catch (err) {
-
                     // Mark job as failed in MongoDB
                     await Job.findByIdAndUpdate(
                         job.data.jobId,
@@ -128,8 +127,8 @@ const startWorker = async () => {
 
             {
                 connection: {
-                    host: "localhost",
-                    port: 6379,
+                    host: redisUrl.hostname,
+                    port: Number(redisUrl.port) || 6379,
                     maxRetriesPerRequest: null
                 }
             }
@@ -148,7 +147,6 @@ const startWorker = async () => {
         });
 
         console.log("Worker is running");
-
     } catch (err) {
         console.error(
             "Failed to start worker:",
