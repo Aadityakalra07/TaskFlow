@@ -1,4 +1,13 @@
 services:
+
+  frontend:
+    build: ./frontend
+    container_name: taskflow-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - api
+
   mongodb:
     image: mongo:8
     container_name: taskflow-mongo
