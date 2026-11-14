@@ -12,11 +12,14 @@ const startServer = async () => {
     await connectRedis();
 
     const server = http.createServer(app);
-    const io = new Server(server,{
-        cors:{
-            origin : "http://localhost:5173"
-        }
-    });
+    const io = new Server(server, {
+    cors: {
+        origin: [
+            "http://localhost:5173",
+            process.env.FRONTEND_URL
+        ].filter(Boolean)
+    }
+});
     await setupSocket(io);
     server.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);

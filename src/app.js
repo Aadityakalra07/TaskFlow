@@ -1,3 +1,4 @@
+const cors = require("cors");
 const express = require('express');
 const errorHandler = require("./middleware/errorMiddleware");
 const {
@@ -9,7 +10,12 @@ const userRoutes = require('./routes/userRoutes');
 const jobRoutes = require('./routes/jobRoutes');
 const authRoutes = require('./routes/authRoutes');
 const app = express();
-
+app.use(cors({
+    origin: [
+        "http://localhost:5173",
+        process.env.FRONTEND_URL
+    ].filter(Boolean)
+}));
 app.use(express.json());
 
 app.use('/api/health', apiLimiter, healthRoutes);
