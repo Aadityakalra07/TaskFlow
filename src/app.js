@@ -10,6 +10,7 @@ const userRoutes = require('./routes/userRoutes');
 const jobRoutes = require('./routes/jobRoutes');
 const authRoutes = require('./routes/authRoutes');
 const app = express();
+app.set('trust proxy', 1);
 app.use(cors({
     origin: [
         "http://localhost:5173",
